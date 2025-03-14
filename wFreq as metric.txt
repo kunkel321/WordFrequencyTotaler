@@ -1,0 +1,158 @@
+Web Frequency as a metric for AutoCorrect item utility 
+
+I just thought I’d share a recent experience and the following mental meanderings about hotstrings and the AutoCorrect2 project...  Any fellow “AutoCorrect Nerds” might find the topic interesting.   ...Or might not.  I dunno.
+
+The HotstringHelper2 tool that is in the AutoCorrect2 script will parse an existing hotstring and allow you to convert it into a multi-match autocorrect entry by setting it as a word beginning/middle/ending and trimming off letters from the beginning or ending of the trigger and replacement pair.   This is discussed in the ac2 and hh2 manual on GitHub.  
+
+Also, the Manual-Correction Logger Tool (MCLogger) keeps track of words that you frequently mistype and manually correct.  These days most of the new autocorrect entries that I add, come from the MCLogger tool.  Recently, it reported
+::presedence::precedence 
+as a word that I frequently mistype, then manually correct.  So, I opened the suggested whole-word hotstring with hh2, set it as a word-middle item, and trimmed off as many letters as I could before the trigger string started inadvertently matching words.  The new autocorrect item (with its function call) was:
+:B0X*?:presed::f("preced") ; Fixes 19 words
+It potentially fixes 19 words 
+precede
+preceded
+precedence
+precedences
+precedencies
+precedency
+precedent
+precedentary
+precedented
+precedentedly
+precedential
+precedentially
+precedently
+precedents
+precedes
+preceding
+unprecedented
+unprecedentedly
+unprecedentedness
+So that’s cool...  I went to add it to my HotstringLib list of autocorrect entries and hh2’s validity check mechanism flagged it. 
+It actually conflicts with TWO other entries:
+; in the no-sort section:
+:B0X*:presed::f("presid") ; Fixes 23 words
+; and in the main list:
+:B0X?:resed::f("ressed") ; Fixes 61 words
+
+As also discussed in the manual, some potentially-conflicting autocorrect items can coexist, if the one with the longer trigger appears first in your script.  That’s why the no-sort section exists.  
+As can be seen, the triggers are very similar, but the replacements are indeed very different.  So, which to keep?  My main metric for this has been to look at the number of potential word fixes, as indicated in the in-line comments.  It also occurred to me to look at the actual matching words and see if they look like words that I might be likely to use (and likely to misspell).   The list for the new ac item is above and the lists for the other two are as follows: 
+:B0X*:presed::f("presid") ; Fixes 23 words
+preside
+presided
+presidencies
+presidency
+president
+President
+presidential
+presidentially
+presidents
+Presidents
+presidentship
+presidentships
+presider
+presiders
+presides
+presidia
+presidial
+presidiary
+presiding
+presidio
+presidios
+presidium
+presidiums
+
+:B0X?:resed::f("ressed") ; Fixes 50 words
+addressed
+adpressed
+aggressed
+appressed
+buttressed
+caressed
+compressed
+congressed
+decompressed
+depressed
+derepressed
+destressed
+digressed
+distressed
+dressed
+egressed
+expressed
+fortressed
+fressed
+hotpressed
+immunosuppressed
+impressed
+misaddressed
+nondepressed
+oppressed
+outdressed
+outpressed
+overcompressed
+overdressed
+overimpressed
+overpressed
+overstressed
+pressed
+prestressed
+progressed
+readdressed
+recompressed
+redigressed
+redressed
+reexpressed
+regressed
+repressed
+restressed
+retrogressed
+stressed
+suppressed
+topdressed
+transgressed
+tressed
+unaddressed
+uncompressed
+underdressed
+undressed
+unexpressed
+unimpressed
+unpressed
+unredressed
+unrepressed
+unstressed
+unsuppressed
+waitressed
+
+
+As I was looking over the lists, it also occurred to me that certain words have a high frequency in written text.  Words such as the, or, and and are super-high frequency words, so probably more important.  Also, the word list that I use in hh2 to evaluate the potential number of word matches is one from GitHub that has a bit over 249k words in it.  So, many of those words are incredibly obscure.  (I mean, “zymogram,” what even is that?)  I thought surely there must be some good Open-Source lists of word frequencies online, and indeed there are.  
+I decided on a list by Racheal Tatman, on Kaggle.com.
+ https://www.kaggle.com/datasets/rtatman/english-word-frequency?resource=download 
+The page is 8 years old, but that’s okay.  The Kaggle list is the “1/3 Million Most Frequent English Words on the Web.”  The data is apparently derived from the Google Web Trillion Word Corpus.  
+The list is a .csv file formatted like
+the,23135851162
+of,13151942776
+and,12997637966
+to,12136980858
+So for example (according to Google, a few years ago), the word “the” appears on the internet 23.14 billion times.  I haven’t manually counted to confirm this...  We’ll take Google’s word for it!   The Kaggle list does, indeed, have 333,333 items.  
+
+I used Claude to make a proof-of-concept script for taking a list of words and totaling the number of occurrences (the “Web Frequency”) for the words.  Of course, the 333k words don’t line up perfectly with the 249k words in my hh2 word list.  
+## link script here # 
+I programmatically removed any word from the 333k web frequency list that wasn’t ALSO in the 249k word list that hh2 uses.  The result was the unigram_freq_list_filtered_88k.csv file that the Word frequency totaller.ahk script reads from.  
+I also made the script accept a hotstring as an input for determining the total web frequency for the list of words that are matched by the hotstring.  Only about 1/3 of the 249k words appear in the frequency data list.  Presumably it is the 1/3 most common words though, which are the ones we mostly care about. 
+
+Then something interesting happened...
+The web frequency totals for the three autocorrect entries were:
+
+:B0X*:presed::f("presid") ; Fixes 23 words, Frequency: 255.88 million
+:B0X?:resed::f("ressed") ; Fixes 61 words, Frequency: 85.40 million
+:B0X*?:presed::f("preced") ; Fixes 19 words, Frequency: 18.85 million
+
+I found it odd that the item with only 23 matches has three times as many web frequency matches as the item with 61 potential matches.   They didn’t seem like especially impressive words to me.  Then I realized that “President” is in there, and there is a ton of political content on the internet.  Plus, the word actually appears twice, “president, President.”  The frequency of just those two words is Frequency: 227.51 million.  The other 21 words combined are only Frequency: 28.37 million.  
+
+I feel like this somewhat invalidates the usefulness of the web frequency data, because I very rarely even type the word “president.”  Frankly, I stopped watching the news altogether on 11-26-2024.  Then again, though, if we think in terms of the “global utility” of AutoCorrect2, then maybe the word is important because, apparently, a lot of people are typing about the topic.  
+
+So... I’m thinking about having the web frequency appended to the autocorrect library items along with the potential word fixes (like with the three hotstrings above).  It seems like it might be a more telling metric of the usefulness of the items.  
+What do you guys think? 
+
